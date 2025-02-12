@@ -49,7 +49,9 @@ class ReflexAgent(BaseAgent):
         """
 
         successorGameState = currentGameState.generatePacmanSuccessor(action)
-
+        
+        
+    
         # Useful information you can extract.
         # newPosition = successorGameState.getPacmanPosition()
         # oldFood = currentGameState.getFood()
