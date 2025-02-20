@@ -28,7 +28,7 @@ class ReflexAgent(BaseAgent):
         `pacai.core.directions.Directions`.
         """
 
-        # Collect legal moves
+        # Collect legal moves.
         legalMoves = gameState.getLegalActions()
         scores = []
         # Evaluate the best action
@@ -53,9 +53,7 @@ class ReflexAgent(BaseAgent):
         Make sure to understand the range of different values before you combine them
         in your evaluation function.
         """
-
         successorGameState = currentGameState.generatePacmanSuccessor(action)
-        
         newPosition = successorGameState.getPacmanPosition()
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
@@ -78,13 +76,24 @@ class ReflexAgent(BaseAgent):
             ghostDistances.append(ghostDist)
         
         """
-        Currently the weights promote pacman to avoid gohst more than get score 
+        Currently the weights promote pacman to avoid ghost more than get score
         which causes it to stay on the right side of the board for longer
         """
         score = successorGameState.getScore()
         if closestFoodDist > 0:
-            score += 1.0 / closestFoodDist
-        score += min(ghostDistances) * 2.0
+            score += 10.0 / closestFoodDist
+        
+        # Penalize having lots of food left
+        score -= len(foodList) * 4
+        
+        # Add ghost avoidance with reasonable distance
+        minGhostDistance = min(ghostDistances)
+        if minGhostDistance < 4:
+            score -= (4 - minGhostDistance) * 20
+        
+        # Encourage movement to prevent getting stuck
+        if action == 'Stop':
+            score -= 50
         
         return score
 
@@ -136,7 +145,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             if not legalMoves:
                 return (self.getEvaluationFunction()(state), None)
             
-            # Gets the best score 
+            # Gets the best score
             if agentIndex == 0:
                 bestScore = float('-inf')
                 bestAction = None
@@ -147,7 +156,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             nextAgent = (agentIndex + 1) % state.getNumAgents()
             nextDepth = depth - 1 if nextAgent == 0 else depth
             
-            # Evaluation of the best move 
+            # Evaluation of the best move
             for action in legalMoves:
                 successor = state.generateSuccessor(agentIndex, action)
                 score, _ = minimax(successor, nextDepth, nextAgent)
@@ -164,9 +173,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             return (bestScore, bestAction)
         
         result = minimax(gameState, self.getTreeDepth(), 0)
-        bestScore = result[0]
-        bestAction = result[1]
-        return bestAction
+        return result[1]
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -273,6 +280,30 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
                 for action in legalMoves:
                     successor = state.generateSuccessor(agentIndex, action)
                     score, _ = expectimax(successor, nextDepth, nextAgent)
+                    
+                    if depth == self.getTreeDepth():
+                        if successor.getNumFood() < state.getNumFood():
+                            score += 200
+                        
+                        if len(successor.getCapsules()) < len(state.getCapsules()):
+                            score += 300
+                        
+                        pos = successor.getPacmanPosition()
+                        food = successor.getFood()
+                        foodList = food.asList()
+                        
+                        if foodList:
+                            minFoodDist = min(manhattan(pos, food) for food in foodList)
+                            score += 50.0 / (minFoodDist + 1)
+                        
+                        ghostStates = successor.getGhostStates()
+                        for ghost in ghostStates:
+                            ghostDist = manhattan(pos, ghost.getPosition())
+                            if ghost.getScaredTimer() > 0:
+                                score += 200.0 / (ghostDist + 1)
+                            elif ghostDist < 2:
+                                score -= 500
+                    
                     if score > bestScore:
                         bestScore = score
                         bestAction = action
@@ -285,7 +316,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
                     score, _ = expectimax(successor, nextDepth, nextAgent)
                     totalScore += score * probability
                 return (totalScore, legalMoves[0])
-    
+        
         bestScore, bestAction = expectimax(gameState, self.getTreeDepth(), 0)
         return bestAction
 
@@ -324,7 +355,7 @@ def betterEvaluationFunction(currentGameState):
         score += 10.0 / (closestFoodDist + 1)
         score -= len(foodList) * 20
     
-    # Evaluation for the gohsts 
+    # Evaluation for the ghosts
     for ghostState in ghostStates:
         ghostDist = manhattan(pos, ghostState.getPosition())
         if ghostState.getScaredTimer() > 0:
@@ -335,7 +366,7 @@ def betterEvaluationFunction(currentGameState):
             else:
                 score += 2.0 * ghostDist
     
-    # Evaluate the capsules 
+    # Evaluate the capsules
     numCapsules = len(capsules)
     if numCapsules > 0:
         minGhostDist = min(manhattan(pos, ghost.getPosition()) for ghost in ghostStates)
