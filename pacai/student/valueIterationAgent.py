@@ -38,8 +38,30 @@ class ValueIterationAgent(ValueEstimationAgent):
         self.iters = iters
         self.values = {}  # A dictionary which holds the q-values for each state.
 
-        # Compute the values here.
-        raise NotImplementedError()
+        states = self.mdp.getStates()
+        
+        for state in states:
+            self.values[state] = 0.0
+            
+        for i in range(self.iters):
+            newValues = self.values.copy()
+            
+            for state in states:
+                if self.mdp.isTerminal(state):
+                    continue
+                
+                actions = self.mdp.getPossibleActions(state)
+                if not actions:
+                    continue
+                
+                maxQValue = float('-inf')
+                for action in actions:
+                    qValue = self.getQValue(state, action)
+                    maxQValue = max(maxQValue, qValue)
+                
+                newValues[state] = maxQValue
+            
+            self.values = newValues
 
     def getValue(self, state):
         """
@@ -47,6 +69,36 @@ class ValueIterationAgent(ValueEstimationAgent):
         """
 
         return self.values.get(state, 0.0)
+
+    def getQValue(self, state, action):
+        qValue = 0.0
+        
+        transitions = self.mdp.getTransitionStatesAndProbs(state, action)
+        
+        for nextState, prob in transitions:
+            reward = self.mdp.getReward(state, action, nextState)
+            qValue += prob * (reward + self.discountRate * self.getValue(nextState))
+            
+        return qValue
+
+    def getPolicy(self, state):
+        if self.mdp.isTerminal(state):
+            return None
+            
+        actions = self.mdp.getPossibleActions(state)
+        if not actions:
+            return None
+            
+        bestAction = None
+        bestQValue = float('-inf')
+        
+        for action in actions:
+            qValue = self.getQValue(state, action)
+            if qValue > bestQValue:
+                bestQValue = qValue
+                bestAction = action
+                
+        return bestAction
 
     def getAction(self, state):
         """
